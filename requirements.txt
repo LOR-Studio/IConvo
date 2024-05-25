@@ -1,0 +1,13 @@
+# requirements.txt
+openai
+pyyaml
+termcolor
+keyboard
+pyaudio
+Pillow
+pyautogui
+pygame
+opencv-python
+moviepy
+nltk
+pygments

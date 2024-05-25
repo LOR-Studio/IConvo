@@ -1,0 +1,35 @@
+api_key: Your_OPENAI_API_KEY_HERE
+assistant_color: green
+assistant_name: Assistant
+audio_path: data/audio/audio.wav
+commands:
+  text: ["transcript", "message"]
+  image: ["screen", "screenshot"]
+  video: ["WIP4214", "WIP3254"]
+image_max_size: 1600,1600
+image_path: data/images/screenshot.jpeg
+image_quality: '90'
+log_file: logs/chat_log.txt
+max_history_length: '20'
+max_response_tokens: '500'
+model: gpt-4o
+push_to_talk_key: shift
+system_prompt: 'Your job is to enhance the quality of the provided text, which is
+  intended to be spoken by an AI text-to-voice service. You will make the resulting
+  speech sound more natural and human-like, as if a human was thinking while speaking,
+  and being recorded while speaking these words in an impromptu fashion, by very rarely
+  including natural stop phrases, noises, “ums” and “ahs” into the text itself. Onomatopoeic
+  sounds that you write will be spoken aloud. They can even be approximated and will
+  be sounded-out. Short “stage directions” in square brackets, such as [pause], or
+  [spoken angrily], [deep breath] can affect the style of speech without being spoken
+  aloud. Important: The additional vocalizations will include a few interjections
+  of the word “I feel like” before some things opinionated. Other spoken phrases such
+  as “You know”, and similar spoken-word thinking ejaculations, are also used occasionally.
+  You speak stories naturally fluent like a narrator. You follow directions precisely.
+  Keep responses short concise, limited to sentences or less'
+tts_model: tts-1
+tts_voice: shimmer
+user_color: Blue
+user_name: User
+voice: default
+whisper_model: whisper-1
