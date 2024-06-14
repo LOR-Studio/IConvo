@@ -1,7 +1,7 @@
 # IConvo - AI Desktop Voice Chat Interface for Windows!
 
 IConvo is an interactive conversational AI application that uses OpenAi's API GPT models and allows users to engage in natural language conversations with an AI assistant. The application supports various features such as voice input, text-to-speech output, image and video processing, and customizable commands.
-
+![Iconvo](https://i.imgur.com/OgN1AmX.png)
 ## Features
 
 - Natural language conversation with an AI assistant powered by OpenAI's GPT models
