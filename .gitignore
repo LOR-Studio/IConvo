@@ -2,3 +2,6 @@ config.yaml
 data/images/screenshot.jpeg
 logs/chat_log.txt
 /__pycache__
+config.yaml
+logs/chat_log.txt
+data/audio/audio.wav

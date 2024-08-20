@@ -2,7 +2,7 @@
 
 import logging
 import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox, BooleanVar, StringVar
+from tkinter import ttk, scrolledtext, messagebox, BooleanVar, StringVar, filedialog
 import yaml
 import openai
 from chat_function import get_chat_response, trim_history
@@ -22,6 +22,8 @@ import time
 import queue
 import nltk
 import pygame
+import shutil
+import atexit
 from datetime import datetime
 from pygments import lex
 from pygments.lexers import YamlLexer
@@ -101,6 +103,7 @@ class Application(tk.Tk):
         self.interrupt_flag = threading.Event()
         self.audio_thread = None
         self.current_audio_file = None
+        self.temp_audio_file = None
         self.messages = [{"role": "system", "content": self.config["system_prompt"]}]
 
         self.colors = LIGHT_MODE
@@ -108,20 +111,48 @@ class Application(tk.Tk):
         self.configure_theme()
         self.setup_logging()
         self.setup_keyboard_listener()
+        self.create_temp_folder()
+        self.clean_temp_folder()
+        # Register the cleanup method to be called on exit
+        atexit.register(self.cleanup_on_exit)
+
+    def create_temp_folder(self):
+        self.temp_folder = os.path.join("data", "temp")
+        os.makedirs(self.temp_folder, exist_ok=True)
+        print(f"{get_timestamp()} - Temporary folder created: {self.temp_folder}")
+
+    def clean_temp_folder(self):
+        for filename in os.listdir(self.temp_folder):
+            file_path = os.path.join(self.temp_folder, filename)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+                    print(f"{get_timestamp()} - Deleted file: {file_path}")
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+                    print(f"{get_timestamp()} - Deleted directory: {file_path}")
+            except Exception as e:
+                print(f"{get_timestamp()} - Failed to delete {file_path}. Reason: {e}")
+
+    def cleanup_on_exit(self):
+        print(f"{get_timestamp()} - Cleaning up before exit...")
+        self.clean_temp_folder()
+        print(f"{get_timestamp()} - Cleanup completed.")
 
     def create_widgets(self):
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill='both', expand=True)
-
         self.theme_var = tk.BooleanVar(value=False)
         self.light_bulb_icon = tk.PhotoImage(file="light_bulb.png")
         self.dark_bulb_icon = tk.PhotoImage(file="dark_bulb.png")
         self.theme_button = tk.Button(self, image=self.light_bulb_icon, bd=0, highlightthickness=0, command=self.toggle_theme)
         self.theme_button.place(relx=1.0, rely=0.0, anchor='ne')
-
         self.create_console_tab()
         self.create_config_tab()
         self.create_about_tab()
+        # Add Save Audio button
+        self.save_audio_button = ttk.Button(self.input_frame, text="Save Audio", command=self.save_last_audio)
+        self.save_audio_button.pack(side='right', padx=5, pady=5)
 
     def toggle_theme(self):
         self.theme_var.set(not self.theme_var.get())
@@ -142,20 +173,6 @@ class Application(tk.Tk):
         self.console_output.configure(bg=self.colors["output_bg"], fg=self.colors["output_fg"])
         self.input_frame.configure(style="TFrame")
         self.theme_button.configure(image=self.dark_bulb_icon if self.theme_var.get() else self.light_bulb_icon)
-
-    def create_widgets(self):
-        self.notebook = ttk.Notebook(self)
-        self.notebook.pack(fill='both', expand=True)
-
-        self.theme_var = tk.BooleanVar(value=False)
-        self.light_bulb_icon = tk.PhotoImage(file="light_bulb.png")
-        self.dark_bulb_icon = tk.PhotoImage(file="dark_bulb.png")
-        self.theme_button = tk.Button(self, image=self.light_bulb_icon, bd=0, highlightthickness=0, command=self.toggle_theme)
-        self.theme_button.place(relx=1.0, rely=0.0, anchor='ne')
-
-        self.create_console_tab()
-        self.create_config_tab()
-        self.create_about_tab()
 
     def create_console_tab(self):
         console_frame = ttk.Frame(self.notebook, style="TFrame")
@@ -316,43 +333,70 @@ class Application(tk.Tk):
 
     def play_and_delete_audio(self, file_path):
         self.audio_playing = True
-        self.current_audio_file = file_path  # Track the current audio file
-        self.interrupt_flag.clear()  # Clear the interrupt flag before starting playback
+        self.current_audio_file = file_path
+        self.temp_audio_file = os.path.join(self.temp_folder, os.path.basename(file_path))
+        shutil.copy2(file_path, self.temp_audio_file)
+        self.interrupt_flag.clear()
 
         def audio_player():
             try:
                 play_audio(file_path, self.interrupt_flag)
-                print(f"{get_timestamp()} - Completed playing audio file: {file_path}")  # Debug print
+                print(f"{get_timestamp()} - Completed playing audio file: {file_path}")
             finally:
                 self.audio_playing = False
-                time.sleep(0.5)  # Introduce a short delay before deleting the file
-                self.clear_current_audio_file()  # Clear only the current audio file
+                time.sleep(0.5)
+                self.clear_current_audio_file()
 
         self.audio_thread = threading.Thread(target=audio_player)
         self.audio_thread.start()
-        # Remove the join() call to allow the main thread to continue executing
 
     def clear_current_audio_file(self):
         if self.current_audio_file and os.path.isfile(self.current_audio_file):
             try:
                 os.remove(self.current_audio_file)
-                print(f"{get_timestamp()} - Deleted audio file: {self.current_audio_file}")  # Debug print
+                print(f"{get_timestamp()} - Deleted audio file: {self.current_audio_file}")
             except Exception as e:
                 print(f"{get_timestamp()} - Failed to delete {self.current_audio_file}. Reason: {e}")
             finally:
                 self.current_audio_file = None
 
+    def save_last_audio(self):
+        if self.temp_audio_file and os.path.isfile(self.temp_audio_file):
+            save_path = filedialog.asksaveasfilename(
+                defaultextension=".mp3",
+                filetypes=[("MP3 files", "*.mp3")],
+                title="Save Last Audio Response"
+            )
+            if save_path:
+                shutil.copy2(self.temp_audio_file, save_path)
+                messagebox.showinfo("Success", f"Audio saved to {save_path}")
+        else:
+            messagebox.showwarning("Warning", "No audio file available to save.")
+
     def clear_audio_directory(self):
         audio_output_dir = os.path.join("data", "audio")
         for filename in os.listdir(audio_output_dir):
             file_path = os.path.join(audio_output_dir, filename)
-            if file_path != self.current_audio_file:  # Skip the current audio file
+            if file_path != self.current_audio_file:
                 try:
                     if os.path.isfile(file_path):
                         os.remove(file_path)
-                        print(f"{get_timestamp()} - Deleted audio file: {file_path}")  # Debug print
+                        print(f"{get_timestamp()} - Deleted audio file: {file_path}")
                 except Exception as e:
                     print(f"{get_timestamp()} - Failed to delete {file_path}. Reason: {e}")
+        
+        # Clear temp folder except for the most recent file
+        temp_files = os.listdir(self.temp_folder)
+        if temp_files:
+            most_recent = max(temp_files, key=lambda f: os.path.getmtime(os.path.join(self.temp_folder, f)))
+            for filename in temp_files:
+                if filename != most_recent:
+                    file_path = os.path.join(self.temp_folder, filename)
+                    try:
+                        os.remove(file_path)
+                        print(f"{get_timestamp()} - Deleted temp audio file: {file_path}")
+                    except Exception as e:
+                        print(f"{get_timestamp()} - Failed to delete {file_path}. Reason: {e}")
 
     def get_text_input(self):
         text_window = tk.Toplevel(self)
